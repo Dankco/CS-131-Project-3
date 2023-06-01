@@ -389,6 +389,7 @@ class ObjectDef:
     # statement execution results
     STATUS_PROCEED = 0
     STATUS_RETURN = 1
+    STATUS_EXCEPTION = 2
 
     # type constants
     INT_TYPE_CONST = Type(InterpreterBase.INT_DEF)
@@ -479,12 +480,14 @@ class ObjectDef:
         status, return_value = obj_to_call_on.__execute_statement(
             env, method_def.return_type, method_def.code
         )
+        if status == ObjectDef.STATUS_EXCEPTION:
+            return ObjectDef.STATUS_EXCEPTION, return_value
         # if the method explicitly used the (return expression) statement to return a value, then return that
         # value back to the caller
         if status == ObjectDef.STATUS_RETURN and return_value is not None:
-            return return_value
+            return ObjectDef.STATUS_PROCEED, return_value
         # The method didn't explicitly return a value, so return the default return type for the method
-        return create_default_value(method_def.get_return_type())
+        return ObjectDef.STATUS_PROCEED, create_default_value(method_def.get_return_type())
 
     # def get_me_as_value(self):
     #     return Value(Type(self.class_def.name), self)
@@ -533,6 +536,10 @@ class ObjectDef:
             return self.__execute_print(env, code)
         elif tok == InterpreterBase.LET_DEF:
             return self.__execute_let(env, return_type, code)
+        elif tok == InterpreterBase.TRY_DEF:
+            return self.__execute_try(env, return_type, code)
+        elif tok == InterpreterBase.THROW_DEF:
+            return self.__execute_throw(env, code)
         else:
             # Report error via interpreter
             self.interpreter.error(
@@ -558,7 +565,8 @@ class ObjectDef:
             status, return_value = self.__execute_statement(
                 env, return_type, statement
             )
-            if status == ObjectDef.STATUS_RETURN:
+            print(status)
+            if status == ObjectDef.STATUS_RETURN or status == ObjectDef.STATUS_EXCEPTION:
                 break
         # if we run through the entire block without a return, then just return proceed
         # we don't want the enclosing block to exit with a return
@@ -576,7 +584,6 @@ class ObjectDef:
             var_type = Type(var_def[0])
             if self.class_def.map_param_types and var_def[0] in self.class_def.map_param_types:
                 var_type = Type(self.class_def.map_param_types[var_def[0]])
-            print(var_type)
             var_name = var_def[1]
             if len(var_def) > 2:
                 default_value = create_value(var_def[2])
@@ -599,14 +606,35 @@ class ObjectDef:
     # uses helper function __execute_begin to implement its functionality
     def __execute_let(self, env, return_type, code):
         return self.__execute_begin(env, return_type, code, True)
+    
+    # uses helper function __execute_begin to implement its functionality
+    def __execute_try(self, env, return_type, code):
+        status, return_val = self.__execute_begin(env, return_type, code[:-1])
+        if status != ObjectDef.STATUS_EXCEPTION:
+            return status, return_val
+        catch_statement = code[-1]
+        var_def = VariableDef(Type(InterpreterBase.STRING_DEF), InterpreterBase.EXCEPTION_VARIABLE_DEF)
+        env.set(InterpreterBase.EXCEPTION_VARIABLE_DEF, var_def)
+        return self.__execute_statement(env, return_type, catch_statement)
+    
+    # uses helper function __execute_begin to implement its functionality
+    def __execute_throw(self, env, code):
+        str_expr = self.__evaluate_expression(env, code[1], code[0].line_num)
+        if self.__check_type_compatibility(str_expr.type(), Type(InterpreterBase.STRING_DEF), False, code[0].line_num):
+            self.interpreter.error(
+            ErrorType.TYPE_ERROR,
+            "not a string passed to throw" + str_expr,
+            )
+        return ObjectDef.STATUS_EXCEPTION, 
 
     # (call object_ref/me methodname param1 param2 param3)
     # where params are expressions, and expresion could be a value, or a (+ ...)
     # statement version of a method call; there's also an expression version of a method call below
     def __execute_call(self, env, code):
-        return ObjectDef.STATUS_PROCEED, self.__execute_call_aux(
+        status, return_val = self.__execute_call_aux(
             env, code, code[0].line_num
         )
+        return status, return_val
 
     # (set varname expression), where expression could be a value, or a (+ ...)
     def __execute_set(self, env, code):
@@ -847,7 +875,8 @@ class ObjectDef:
 
         # handle call expression: (call objref methodname p1 p2 p3)
         if operator == InterpreterBase.CALL_DEF:
-            return self.__execute_call_aux(env, expr, line_num_of_statement)
+            status, return_val = self.__execute_call_aux(env, expr, line_num_of_statement)
+            return return_val
         # handle new expression: (new classname)
         if operator == InterpreterBase.NEW_DEF:
             return self.__execute_new_aux(env, expr, line_num_of_statement)
@@ -1166,7 +1195,6 @@ class TypeManager:
 
     # typea and typeb are Type objects
     def check_type_compatibility(self, typea, typeb, for_assignment):
-        print(typea.type_name, typeb.type_name)
         template = '@' in typea.type_name or '@' in typeb.type_name
         # if either type is invalid (E.g., the user referenced a class name that doesn't exist) then
         # return false
