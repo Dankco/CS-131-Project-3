@@ -267,7 +267,7 @@ class ClassDef:
         if len(field_def) > 3:
             value = create_value(field_def[3])
         t = field_def[1]
-        if field_def[1] in self.map_param_types:
+        if self.map_param_types and field_def[1] in self.map_param_types:
             t = self.map_param_types[field_def[1]]
         var_def = VariableDef(Type(t), field_def[2], value)
         if not self.interpreter.check_type_compatibility(
