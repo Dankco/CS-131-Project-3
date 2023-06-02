@@ -207,6 +207,7 @@ def generate_test_suite_v3():
         "test_except13",
         "test_defaults",
         "test_template",
+        "test_template7"
     ]
     fails = [
         "test_except4",

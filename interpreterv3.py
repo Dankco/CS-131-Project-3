@@ -297,6 +297,15 @@ class ClassDef:
         methods_defined_so_far = set()
         for member in class_body:
             if member[0] == InterpreterBase.METHOD_DEF:
+                if '@' in member[1]:
+                    ret_type = member[1].split('@')
+                    new_type = ret_type[0]
+                    for type in ret_type[1:]:
+                        if self.map_param_types and type in self.map_param_types.keys():
+                            new_type += f'@{self.map_param_types[type]}'
+                        else:
+                            new_type += f'@{type}'
+                    member[1] = new_type
                 method_def = MethodDef(member)
                 if (
                     method_def.method_name in methods_defined_so_far
@@ -505,6 +514,12 @@ class ObjectDef:
 
     def get_me_as_value(self):
         anchor = self.anchor_object
+        if anchor.class_def.name in self.interpreter.tclass_index:
+            types = anchor.class_def.map_param_types
+            type_to_use = anchor.class_def.name
+            for type in types.values():
+                type_to_use += f'@{type}'
+            return Value(Type(type_to_use), anchor)
         return Value(Type(anchor.class_def.name), anchor)
 
     # checks whether each formal parameter has a compatible type with the actual parameter
@@ -1221,6 +1236,7 @@ class TypeManager:
 
     # typea and typeb are Type objects
     def check_type_compatibility(self, typea, typeb, for_assignment):
+        print(typea.type_name, typeb.type_name)
         template = '@' in typea.type_name or '@' in typeb.type_name
         # if either type is invalid (E.g., the user referenced a class name that doesn't exist) then
         # return false
