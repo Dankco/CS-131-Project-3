@@ -1,0 +1,20 @@
+(tclass bar (field_type) 
+  (field field_type value)
+  (method void set_val ((field_type v)) (set value v))
+)
+(tclass foo (field_type safd) 
+  (field field_type value)
+  (method void set_val ((field_type v)) (set value v))
+  (method bar@field_type get_bar () (return (new bar@field_type)))
+)
+
+(class main
+  (method void main () 
+    (let ((foo@int@bool x null) (bar@int y null))
+         (set x (new foo@int@bool))
+         (set y (call x get_bar))
+         (print "good!")
+    )
+  )
+)
+

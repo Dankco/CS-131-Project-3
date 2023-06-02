@@ -203,7 +203,7 @@ class TClassDef:
             if not self.interpreter.is_valid_type(type):
                 self.interpreter.error(
                     ErrorType.TYPE_ERROR,
-                    "Bad type for tclass",
+                    "Bad type for tclass" + type,
                 )
         return ClassDef(self.class_source, self.interpreter, {param:t for (param, t) in zip(self.param_types, types)})
 
@@ -280,6 +280,17 @@ class ClassDef:
         t = field_def[1]
         if self.map_param_types and field_def[1] in self.map_param_types:
             t = self.map_param_types[field_def[1]]
+        else:
+            t = self.check_for_param_types(t)
+        if '@' in t:
+            t_def = t.split('@')
+            t_name = t_def[0]
+            if len(self.interpreter.tclass_index[t_name].param_types) != len(t_def[1:]):
+                self.interpreter.error(
+                    ErrorType.TYPE_ERROR,
+                    "invalid type " + t_def[1],
+                    field_def[0].line_num,
+                )
         var_def = VariableDef(Type(t), field_def[2], value)
         if not self.interpreter.check_type_compatibility(
             var_def.type, var_def.value.type(), True
@@ -291,21 +302,33 @@ class ClassDef:
             )
         return var_def
 
+    def check_for_param_types(self, term):
+        if type(term) is list:
+            return [self.check_for_param_types(t) for t in term]
+        elif '@' in term:
+            return self.__replace_param_types(term)
+        else:
+            return term
+
+    def __replace_param_types(self, src_type):
+        type_split = src_type.split('@')
+        new_type = type_split[0]
+        for type in type_split[1:]:
+            if self.map_param_types and type in self.map_param_types.keys():
+                new_type += f'@{self.map_param_types[type]}'
+            else:
+                new_type += f'@{type}'
+        return new_type
+
     def __create_method_list(self, class_body):
         self.methods = []
         self.method_map = {}
         methods_defined_so_far = set()
         for member in class_body:
             if member[0] == InterpreterBase.METHOD_DEF:
-                if '@' in member[1]:
-                    ret_type = member[1].split('@')
-                    new_type = ret_type[0]
-                    for type in ret_type[1:]:
-                        if self.map_param_types and type in self.map_param_types.keys():
-                            new_type += f'@{self.map_param_types[type]}'
-                        else:
-                            new_type += f'@{type}'
-                    member[1] = new_type
+                member[1] = self.check_for_param_types(member[1])
+                member[3] = self.check_for_param_types(member[3])
+                member[4] = self.check_for_param_types(member[4])
                 method_def = MethodDef(member)
                 if (
                     method_def.method_name in methods_defined_so_far
