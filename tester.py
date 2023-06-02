@@ -215,7 +215,8 @@ def generate_test_suite_v3():
         "test_template_no",
         "test_template_name",
         "test_mismatch",
-        "test_mismatch2"
+        "test_mismatch2",
+        "test_template_bad",
     ]
     return __generate_test_suite(3, tests, fails)
 
