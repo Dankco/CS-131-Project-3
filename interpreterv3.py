@@ -194,6 +194,17 @@ class TClassDef:
         self.param_types = class_source[2]
 
     def create_class(self, types):
+        if not types or len(types) != len(self.param_types):
+            self.interpreter.error(
+                ErrorType.TYPE_ERROR,
+                "No Type for tclass",
+            )
+        for type in types:
+            if not self.interpreter.is_valid_type(type):
+                self.interpreter.error(
+                    ErrorType.TYPE_ERROR,
+                    "Bad type for tclass",
+                )
         return ClassDef(self.class_source, self.interpreter, {param:t for (param, t) in zip(self.param_types, types)})
 
 

@@ -24,9 +24,9 @@ class TestScaffold(AbstractTestScaffold):
         self.interpreter_lib = interpreter_lib
 
     def setup(self, test_case):
-        inputfile, expfile, srcfile = itemgetter("inputfile", "expfile", "srcfile")(
-            test_case
-        )
+        inputfile, expfile, srcfile = itemgetter(
+            "inputfile", "expfile", "srcfile"
+        )(test_case)
 
         with open(expfile, encoding="utf-8") as handle:
             expected = list(map(lambda x: x.rstrip("\n"), handle.readlines()))
@@ -188,7 +188,12 @@ def generate_test_suite_v2():
             "test_inher1",
             "test_let",
         ],
-        ["test_incompat_return1", "test_let2", "test_inher1", "test_incompat_types2"],
+        [
+            "test_incompat_return1",
+            "test_let2",
+            "test_inher1",
+            "test_incompat_types2",
+        ],
     )
 
 
@@ -201,11 +206,16 @@ def generate_test_suite_v3():
         "test_except1",
         "test_except13",
         "test_defaults",
+        "test_template",
     ]
     fails = [
         "test_except4",
         "test_template5",
-        "test_incompat_template_types"
+        "test_incompat_template_types",
+        "test_template_no",
+        "test_template_name",
+        "test_mismatch",
+        "test_mismatch2"
     ]
     return __generate_test_suite(3, tests, fails)
 
