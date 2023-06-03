@@ -112,7 +112,7 @@ class Interpreter(InterpreterBase):
 
     # [class classname inherits superclassname [items]]
     def __add_all_class_types_to_type_manager(self, parsed_program):
-        self.type_manager = TypeManager()
+        self.type_manager = TypeManager(self)
         for item in parsed_program:
             if item[0] == InterpreterBase.CLASS_DEF:
                 class_name = item[1]
@@ -290,6 +290,12 @@ class ClassDef:
         if '@' in t:
             t_def = t.split('@')
             t_name = t_def[0]
+            if not self.interpreter.tclass_index.get(t_def[0]):
+                self.interpreter.error(
+                    ErrorType.TYPE_ERROR,
+                    "invalid type " + t_def[1],
+                    field_def[0].line_num,
+                )
             if len(self.interpreter.tclass_index[t_name].param_types) != len(
                 t_def[1:]
             ):
@@ -651,6 +657,12 @@ class ObjectDef:
             # vardef in the form of (typename varname defvalue)
             if '@' in var_def[0]:
                 var_split = var_def[0].split('@')
+                if not self.interpreter.tclass_index.get(var_split[0]):
+                    self.interpreter.error(
+                        ErrorType.TYPE_ERROR,
+                        "invalid type " + var_split[1],
+                        line_number,
+                    )
                 if len(
                     self.interpreter.tclass_index[var_split[0]].param_types
                 ) != len(var_split[1:]):
@@ -1280,9 +1292,10 @@ def create_default_value(type_def):
 # Used to track user-defined types (for classes) as well as check for type compatibility between
 # values of same/different types for assignment/comparison
 class TypeManager:
-    def __init__(self):
+    def __init__(self, interpreter):
         self.map_typename_to_type = {}
         self.__setup_primitive_types()
+        self.interpreter = interpreter
 
     # used to register a new class name (and its supertype name, if present as a valid type so it can be used
     # for type checking.
@@ -1323,8 +1336,23 @@ class TypeManager:
 
     # typea and typeb are Type objects
     def check_type_compatibility(self, typea, typeb, for_assignment):
-        print(typea.type_name, typeb.type_name)
         template = '@' in typea.type_name or '@' in typeb.type_name
+        if '@' in typea.type_name:
+            var_split = typea.type_name.split('@')
+            if not self.interpreter.tclass_index.get(var_split[0]):
+                return False
+            if len(
+                self.interpreter.tclass_index[var_split[0]].param_types
+            ) != len(var_split[1:]):
+                return False
+        if '@' in typeb.type_name:
+            var_split = typeb.type_name.split('@')
+            if not self.interpreter.tclass_index.get(var_split[0]):
+                return False
+            if len(
+                self.interpreter.tclass_index[var_split[0]].param_types
+            ) != len(var_split[1:]):
+                return False
         # if either type is invalid (E.g., the user referenced a class name that doesn't exist) then
         # return false
         if not self.is_valid_type(typea.type_name) or not self.is_valid_type(
