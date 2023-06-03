@@ -242,6 +242,7 @@ def generate_test_suite_v3():
         "v_template12",
         "v_template13",
         "v_template14",
+        "test_template",
     ]
     return __generate_test_suite(3, tests, fails)
 

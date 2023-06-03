@@ -320,12 +320,24 @@ class ClassDef:
             return [self.check_for_param_types(t) for t in term]
         elif '@' in term:
             return self.__replace_param_types(term)
+        elif term in self.interpreter.tclass_index:
+            self.interpreter.error(
+                ErrorType.TYPE_ERROR,
+                "bad type" + term,
+            )
         else:
             return term
 
     def __replace_param_types(self, src_type):
         type_split = src_type.split('@')
         new_type = type_split[0]
+        if self.map_param_types and len(type_split[1:]) != len(
+            self.map_param_types.keys()
+        ):
+            self.interpreter.error(
+                ErrorType.TYPE_ERROR,
+                "bad type" + type_split[0],
+            )
         for type in type_split[1:]:
             if self.map_param_types and type in self.map_param_types.keys():
                 new_type += f'@{self.map_param_types[type]}'
