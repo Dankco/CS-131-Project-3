@@ -124,6 +124,7 @@ class Interpreter(InterpreterBase):
                 class_name = item[1]
                 self.type_manager.add_class_type(class_name, None)
 
+
 # Enumerated type for our different language data types
 class Type:
     def __init__(self, type_name, supertype_name=None):
@@ -205,7 +206,11 @@ class TClassDef:
                     ErrorType.TYPE_ERROR,
                     "Bad type for tclass" + type,
                 )
-        return ClassDef(self.class_source, self.interpreter, {param:t for (param, t) in zip(self.param_types, types)})
+        return ClassDef(
+            self.class_source,
+            self.interpreter,
+            {param: t for (param, t) in zip(self.param_types, types)},
+        )
 
 
 # holds definition for a class, including a list of all the fields and their default values, all
@@ -285,7 +290,9 @@ class ClassDef:
         if '@' in t:
             t_def = t.split('@')
             t_name = t_def[0]
-            if len(self.interpreter.tclass_index[t_name].param_types) != len(t_def[1:]):
+            if len(self.interpreter.tclass_index[t_name].param_types) != len(
+                t_def[1:]
+            ):
                 self.interpreter.error(
                     ErrorType.TYPE_ERROR,
                     "invalid type " + t_def[1],
@@ -368,7 +375,10 @@ class ClassDef:
                     method_def.line_num,
                 )
             param_type = param.type.type_name
-            if self.map_param_types and param.type.type_name in self.map_param_types:
+            if (
+                self.map_param_types
+                and param.type.type_name in self.map_param_types
+            ):
                 param_type = self.map_param_types[param.type.type_name]
             if not self.interpreter.is_valid_type(param_type):
                 self.interpreter.error(
@@ -530,7 +540,9 @@ class ObjectDef:
         if status == ObjectDef.STATUS_RETURN and return_value is not None:
             return ObjectDef.STATUS_PROCEED, return_value
         # The method didn't explicitly return a value, so return the default return type for the method
-        return ObjectDef.STATUS_PROCEED, create_default_value(method_def.get_return_type())
+        return ObjectDef.STATUS_PROCEED, create_default_value(
+            method_def.get_return_type()
+        )
 
     # def get_me_as_value(self):
     #     return Value(Type(self.class_def.name), self)
@@ -548,8 +560,13 @@ class ObjectDef:
     # checks whether each formal parameter has a compatible type with the actual parameter
     def __compatible_param_types(self, actual_params, formal_params):
         for formal, actual in zip(formal_params, actual_params):
-            if self.class_def.map_param_types and formal.type.type_name in self.class_def.map_param_types:
-                formal.type = Type(self.class_def.map_param_types[formal.type.type_name])
+            if (
+                self.class_def.map_param_types
+                and formal.type.type_name in self.class_def.map_param_types
+            ):
+                formal.type = Type(
+                    self.class_def.map_param_types[formal.type.type_name]
+                )
             if not self.interpreter.check_type_compatibility(
                 formal.type, actual.type(), True
             ):
@@ -614,7 +631,10 @@ class ObjectDef:
             status, return_value = self.__execute_statement(
                 env, return_type, statement
             )
-            if status == ObjectDef.STATUS_RETURN or status == ObjectDef.STATUS_EXCEPTION:
+            if (
+                status == ObjectDef.STATUS_RETURN
+                or status == ObjectDef.STATUS_EXCEPTION
+            ):
                 break
         # if we run through the entire block without a return, then just return proceed
         # we don't want the enclosing block to exit with a return
@@ -629,8 +649,21 @@ class ObjectDef:
     def __add_locals_to_env(self, env, var_defs, line_number):
         for var_def in var_defs:
             # vardef in the form of (typename varname defvalue)
+            if '@' in var_def[0]:
+                var_split = var_def[0].split('@')
+                if len(
+                    self.interpreter.tclass_index[var_split[0]].param_types
+                ) != len(var_split[1:]):
+                    self.interpreter.error(
+                        ErrorType.TYPE_ERROR,
+                        "var not matching template" + var_split[0],
+                        line_number,
+                    )
             var_type = Type(var_def[0])
-            if self.class_def.map_param_types and var_def[0] in self.class_def.map_param_types:
+            if (
+                self.class_def.map_param_types
+                and var_def[0] in self.class_def.map_param_types
+            ):
                 var_type = Type(self.class_def.map_param_types[var_def[0]])
             var_name = var_def[1]
             if len(var_def) > 2:
@@ -654,27 +687,38 @@ class ObjectDef:
     # uses helper function __execute_begin to implement its functionality
     def __execute_let(self, env, return_type, code):
         return self.__execute_begin(env, return_type, code, True)
-    
+
     # uses helper function __execute_begin to implement its functionality
     def __execute_try(self, env, return_type, code):
         status, return_val = self.__execute_begin(env, return_type, code[:-1])
         if status != ObjectDef.STATUS_EXCEPTION:
             return status, return_val
         catch_statement = code[-1]
-        var_def = VariableDef(Type(InterpreterBase.STRING_DEF), InterpreterBase.EXCEPTION_VARIABLE_DEF, return_val)
+        var_def = VariableDef(
+            Type(InterpreterBase.STRING_DEF),
+            InterpreterBase.EXCEPTION_VARIABLE_DEF,
+            return_val,
+        )
         env.create_new_symbol(InterpreterBase.EXCEPTION_VARIABLE_DEF)
         env.set(InterpreterBase.EXCEPTION_VARIABLE_DEF, var_def)
         return self.__execute_statement(env, return_type, catch_statement)
-    
+
     # uses helper function __execute_begin to implement its functionality
     def __execute_throw(self, env, code):
-        status, str_expr = self.__evaluate_expression(env, code[1], code[0].line_num)
+        status, str_expr = self.__evaluate_expression(
+            env, code[1], code[0].line_num
+        )
         if status == ObjectDef.STATUS_EXCEPTION:
             return ObjectDef.STATUS_EXCEPTION, str_expr
-        if self.__check_type_compatibility(str_expr.type(), Type(InterpreterBase.STRING_DEF), False, code[0].line_num):
+        if self.__check_type_compatibility(
+            str_expr.type(),
+            Type(InterpreterBase.STRING_DEF),
+            False,
+            code[0].line_num,
+        ):
             self.interpreter.error(
-            ErrorType.TYPE_ERROR,
-            "not a string passed to throw" + str_expr,
+                ErrorType.TYPE_ERROR,
+                "not a string passed to throw" + str_expr,
             )
         return ObjectDef.STATUS_EXCEPTION, str_expr
 
@@ -689,7 +733,9 @@ class ObjectDef:
 
     # (set varname expression), where expression could be a value, or a (+ ...)
     def __execute_set(self, env, code):
-        status, val = self.__evaluate_expression(env, code[2], code[0].line_num)
+        status, val = self.__evaluate_expression(
+            env, code[2], code[0].line_num
+        )
         if status == ObjectDef.STATUS_EXCEPTION:
             return status, val
         self.__set_variable_aux(
@@ -703,7 +749,9 @@ class ObjectDef:
             # [return] with no return value; return default value for type
             return ObjectDef.STATUS_RETURN, None
         else:
-            status, result = self.__evaluate_expression(env, code[1], code[0].line_num)
+            status, result = self.__evaluate_expression(
+                env, code[1], code[0].line_num
+            )
             if status == ObjectDef.STATUS_EXCEPTION:
                 return status, result
             if result.is_typeless_null():
@@ -713,8 +761,13 @@ class ObjectDef:
                 result = Value(
                     return_type, None
                 )  # propagate return type to null ###
-        if self.class_def.map_param_types and return_type.type_name in self.class_def.map_param_types:
-            return_type = Type(self.class_def.map_param_types[return_type.type_name])
+        if (
+            self.class_def.map_param_types
+            and return_type.type_name in self.class_def.map_param_types
+        ):
+            return_type = Type(
+                self.class_def.map_param_types[return_type.type_name]
+            )
         self.__check_type_compatibility(
             return_type, result.type(), True, code[0].line_num
         )
@@ -725,7 +778,9 @@ class ObjectDef:
         output = ""
         for expr in code[1:]:
             # TESTING NOTE: Will not test printing of object references
-            status, term = self.__evaluate_expression(env, expr, code[0].line_num)
+            status, term = self.__evaluate_expression(
+                env, expr, code[0].line_num
+            )
             if status == ObjectDef.STATUS_EXCEPTION:
                 return status, term
             val = term.value()
@@ -772,7 +827,9 @@ class ObjectDef:
     # (if expression (statement) (statement) ) where expresion could be a boolean constant (e.g., true), member
     # variable without ()s, or a boolean expression in parens, like (> 5 a)
     def __execute_if(self, env, return_type, code):
-        status, condition = self.__evaluate_expression(env, code[1], code[0].line_num)
+        status, condition = self.__evaluate_expression(
+            env, code[1], code[0].line_num
+        )
         if status == ObjectDef.STATUS_EXCEPTION:
             return status, condition
         if condition.type() != ObjectDef.BOOL_TYPE_CONST:
@@ -818,7 +875,10 @@ class ObjectDef:
             status, return_value = self.__execute_statement(
                 env, return_type, code[2]
             )
-            if status == ObjectDef.STATUS_RETURN or status == ObjectDef.STATUS_EXCEPTION:
+            if (
+                status == ObjectDef.STATUS_RETURN
+                or status == ObjectDef.STATUS_EXCEPTION
+            ):
                 return (
                     status,
                     return_value,
@@ -840,7 +900,9 @@ class ObjectDef:
             # locals shadow member variables
             var_def = env.get(expr)
             if var_def is not None:
-                return ObjectDef.STATUS_PROCEED, self.__propagate_type_to_null(var_def)
+                return ObjectDef.STATUS_PROCEED, self.__propagate_type_to_null(
+                    var_def
+                )
             elif expr in self.fields:
                 return ObjectDef.STATUS_PROCEED, self.__propagate_type_to_null(
                     self.fields[expr]
@@ -877,9 +939,9 @@ class ObjectDef:
                         "invalid operator applied to ints",
                         line_num_of_statement,
                     )
-                return ObjectDef.STATUS_PROCEED, self.binary_ops[InterpreterBase.INT_DEF][operator](
-                    operand1, operand2
-                )
+                return ObjectDef.STATUS_PROCEED, self.binary_ops[
+                    InterpreterBase.INT_DEF
+                ][operator](operand1, operand2)
             if (
                 operand1.type() == operand2.type()
                 and operand1.type() == ObjectDef.STRING_TYPE_CONST
@@ -890,9 +952,9 @@ class ObjectDef:
                         "invalid operator applied to strings",
                         line_num_of_statement,
                     )
-                return ObjectDef.STATUS_PROCEED, self.binary_ops[InterpreterBase.STRING_DEF][operator](
-                    operand1, operand2
-                )
+                return ObjectDef.STATUS_PROCEED, self.binary_ops[
+                    InterpreterBase.STRING_DEF
+                ][operator](operand1, operand2)
             if (
                 operand1.type() == operand2.type()
                 and operand1.type() == ObjectDef.BOOL_TYPE_CONST
@@ -903,16 +965,16 @@ class ObjectDef:
                         "invalid operator applied to bool",
                         line_num_of_statement,
                     )
-                return ObjectDef.STATUS_PROCEED, self.binary_ops[InterpreterBase.BOOL_DEF][operator](
-                    operand1, operand2
-                )
+                return ObjectDef.STATUS_PROCEED, self.binary_ops[
+                    InterpreterBase.BOOL_DEF
+                ][operator](operand1, operand2)
             # handle object reference comparisons last
             if self.interpreter.check_type_compatibility(
                 operand1.type(), operand2.type(), False
             ):
-                return ObjectDef.STATUS_PROCEED, self.binary_ops[InterpreterBase.CLASS_DEF][operator](
-                    operand1, operand2
-                )
+                return ObjectDef.STATUS_PROCEED, self.binary_ops[
+                    InterpreterBase.CLASS_DEF
+                ][operator](operand1, operand2)
             self.interpreter.error(
                 ErrorType.TYPE_ERROR,
                 f"operator {operator} applied to two incompatible types",
@@ -929,16 +991,18 @@ class ObjectDef:
                         "invalid unary operator applied to bool",
                         line_num_of_statement,
                     )
-                return ObjectDef.STATUS_PROCEED, self.unary_ops[InterpreterBase.BOOL_DEF][operator](
-                    operand
-                )
+                return ObjectDef.STATUS_PROCEED, self.unary_ops[
+                    InterpreterBase.BOOL_DEF
+                ][operator](operand)
 
         # handle call expression: (call objref methodname p1 p2 p3)
         if operator == InterpreterBase.CALL_DEF:
             return self.__execute_call_aux(env, expr, line_num_of_statement)
         # handle new expression: (new classname)
         if operator == InterpreterBase.NEW_DEF:
-            return ObjectDef.STATUS_PROCEED, self.__execute_new_aux(env, expr, line_num_of_statement)
+            return ObjectDef.STATUS_PROCEED, self.__execute_new_aux(
+                env, expr, line_num_of_statement
+            )
 
     # (new classname)
     def __execute_new_aux(self, env, code, line_num_of_statement):
@@ -981,10 +1045,10 @@ class ObjectDef:
         # prepare the actual arguments for passing
         actual_args = []
         for expr in code[3:]:
-            status, val = self.__evaluate_expression(env, expr, line_num_of_statement)
-            actual_args.append(
-                val
+            status, val = self.__evaluate_expression(
+                env, expr, line_num_of_statement
             )
+            actual_args.append(val)
             if status == ObjectDef.STATUS_EXCEPTION:
                 return status, val
         return obj.call_method(
@@ -1273,8 +1337,10 @@ class TypeManager:
         ):  # animal = person or animal == person
             return True
         # if b is a supertype of a, and we're not doing assignment then the types are compatible
-        if not template and not for_assignment and self.is_a_subtype(
-            typeb.type_name, typea.type_name
+        if (
+            not template
+            and not for_assignment
+            and self.is_a_subtype(typeb.type_name, typea.type_name)
         ):  # person == animal
             return True
         # if the types are identical then they're compatible

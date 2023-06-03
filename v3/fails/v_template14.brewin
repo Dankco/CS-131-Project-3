@@ -10,17 +10,12 @@
 (class Duck
  (method void quack () (print "quack"))
 )
-
-      (class main
-        #(field Foo@Duck@int t1 null)
-        (field Foo@Duck@string t2 null)
-
-        (method void main () 
-          (let ((Foo@Duck@int t1) (Foo@Duck t2))
-            
-             (print (== t1 null))
-             
-
-          )
-        )
-      )
+(class main
+  (field Foo@Duck@int t1 null)
+  (field Foo@Duck@string t2 null)
+  (method void main () 
+    (let ((Foo@Duck@int t1) (Foo@Duck t2))
+      (print (== t1 null))
+    )
+  )
+)
